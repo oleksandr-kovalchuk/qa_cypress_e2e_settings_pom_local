@@ -1,66 +1,72 @@
-/// <reference types="cypress" />
-/// <reference types="../support" />
+/// <reference types='cypress' />
+/// <reference types='../support' />
 
-import SignInPageObject from '../support/pages/signIn.pageObject';
 import SettingsPageObject from '../support/pages/settings.pageObject';
-import { faker } from '@faker-js/faker';
+import SignInPageObject from '../support/pages/signIn.pageObject';
+import HomePageObject from '../support/pages/home.pageObject';
 
-const signInPage = new SignInPageObject();
 const settingsPage = new SettingsPageObject();
+const signInPage = new SignInPageObject();
+const homePage = new HomePageObject();
 
-const newData = {
-  newName: faker.internet.userName().replace(/[^a-zA-Z0-9_]/g, ''),
-  newBio: faker.lorem.text(),
-  newEmail: faker.internet.email(),
-  newPassword: faker.internet.password(),
-};
-
-describe('Settings page', () => {
+describe('User Settings page', () => {
   let user;
+  let newUserData = {};
 
   beforeEach(() => {
     cy.task('db:clear');
-
-    cy.task('generateUser').then((generateUser) => {
-      user = generateUser;
-
-      signInPage.visit();
+    cy.task('generateUser').then((generatedUser) => {
+      user = generatedUser;
       cy.login(user.email, user.username, user.password);
-
-      signInPage.typeEmail(user.email);
-      signInPage.typePassword(user.password);
-      signInPage.clickSignInBtn();
-
       settingsPage.visit();
     });
   });
 
-  it('should provide an ability to update username', () => {
-    settingsPage.userNameField.should('have.value', user.username);
-    settingsPage.userNameField.clear();
-    settingsPage.typeUserName(newData.newName);
-    settingsPage.userNameField.should('have.value', newData.newName);
-    settingsPage.updateSettings();
+  it('should allow updating the bio', () => {
+    cy.task('generateRandomString', 10).then((newBio) => {
+      newUserData.bio = newBio;
+      settingsPage.typeBio(newUserData.bio);
+      settingsPage.updateSettings();
+      settingsPage.visit();
+      settingsPage.bioField.should('have.value', newUserData.bio);
+    });
   });
 
-  it('should provide an ability to update bio', () => {
-    settingsPage.bioField.should('have.value', '');
-    settingsPage.typeBio(newData.newBio);
-    settingsPage.bioField.should('contain.text', newData.newBio);
-    settingsPage.updateSettings();
+  it('should allow updating the username', () => {
+    cy.task('generateUser').then((generatedNewUser) => {
+      newUserData.username = generatedNewUser.username;
+      settingsPage.typeUserName(newUserData.username);
+      settingsPage.updateSettings();
+      homePage.visit();
+      homePage.assertHeaderContainUsername(newUserData.username);
+    });
   });
 
-  it('should provide an ability to update an email', () => {
-    settingsPage.emailField.should('have.value', user.email);
-    settingsPage.emailField.clear();
-    settingsPage.typeEmail(newData.newEmail);
-    settingsPage.emailField.should('have.value', newData.newEmail);
-    settingsPage.updateSettings();
+  it('should allow updating the email', () => {
+    cy.task('generateUser').then((generatedNewUser) => {
+      newUserData.email = generatedNewUser.email;
+      settingsPage.typeEmail(newUserData.email);
+      settingsPage.updateSettings();
+      settingsPage.logout();
+      signInPage.visit();
+      signInPage.typeEmail(newUserData.email);
+      signInPage.typePassword(user.password);
+      signInPage.clickSignInBtn();
+      homePage.assertHeaderContainUsername(user.username);
+    });
   });
 
-  it('should provide an ability to update password', () => {
-    settingsPage.typePassword(newData.newPassword);
-    settingsPage.passwordField.should('have.value', newData.newPassword);
-    settingsPage.updateSettings();
+  it('should allow updating the password', () => {
+    cy.task('generateUser').then((generatedNewUser) => {
+      newUserData.password = generatedNewUser.password;
+      settingsPage.typePassword(newUserData.password);
+      settingsPage.updateSettings();
+      settingsPage.logout();
+      signInPage.visit();
+      signInPage.typeEmail(user.email);
+      signInPage.typePassword(newUserData.password);
+      signInPage.clickSignInBtn();
+      homePage.assertHeaderContainUsername(user.username);
+    });
   });
 });
